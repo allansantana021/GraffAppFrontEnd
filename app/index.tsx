@@ -1,6 +1,4 @@
-// app/index.tsx - CÓDIGO CORRIGIDO
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,7 +9,11 @@ import {
   StatusBar,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
+// Note: 'expo-linear-gradient' é um pacote externo e pode não estar disponível 
+// em ambientes simulados, mas mantido conforme o original.
+// Se necessário, substitua por View com cor sólida.
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { useRouter } from 'expo-router'; 
@@ -28,9 +30,13 @@ const COLORS = {
   buttonPrimary: '#000000',
   buttonText: '#FFFFFF',
   buttonSecondaryText: '#555555',
+  errorBackground: '#FFEBEE',
+  errorBorder: '#D32F2F',
+  errorText: '#D32F2F',
 };
 
 
+// --- Componente de Botão de Alternância (Reutilizado) ---
 interface AuthButtonProps {
   label: string;
   onPress: () => void;
@@ -44,6 +50,7 @@ const AuthButton: React.FC<AuthButtonProps> = ({ label, onPress, isActive }) => 
       isActive ? styles.authButtonActive : styles.authButtonInactive,
     ]}
     onPress={onPress}
+    activeOpacity={0.8}
   >
     <Text
       style={[
@@ -59,37 +66,82 @@ const AuthButton: React.FC<AuthButtonProps> = ({ label, onPress, isActive }) => 
 );
 
 
+// --- LÓGICA DE SIMULAÇÃO DE AUTENTICAÇÃO E REDIRECIONAMENTO ---
+function useAuthStatus() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isReady, setIsReady] = useState(false);
+
+  useEffect(() => {
+    // Simula a verificação de um token local.
+    // Em uma aplicação real, aqui você faria a chamada assíncrona para checar o token/sessão.
+    const checkAuth = async () => {
+      await new Promise(resolve => setTimeout(resolve, 50)); 
+      // Por padrão, definimos como false para que a tela de login apareça primeiro.
+      setIsAuthenticated(false); 
+      setIsReady(true);
+    };
+    checkAuth();
+  }, []);
+
+  // Nota: Retornamos setIsAuthenticated, embora não seja usado diretamente no Index,
+  // mantemos a estrutura de um hook de autenticação real.
+  return { isAuthenticated, isReady, setIsAuthenticated };
+}
+
+// --- Componente Principal (Agora unificado no Index) ---
 const GraffiteAuthScreen: React.FC = () => {
   
   const router = useRouter(); 
+  const { isAuthenticated, isReady } = useAuthStatus();
   
   const [isLogin, setIsLogin] = useState(true);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
- const handleAuth = () => {
+  // Se o estado de autenticação for true, redireciona imediatamente (sem mostrar a tela de login)
+  if (isReady && isAuthenticated) {
+    // router.replace() é crucial aqui para remover a tela de login da pilha.
+    router.replace('/feed');
+    return null; // Não renderiza nada enquanto redireciona
+  }
+
+  // Mostra o loading enquanto verifica a autenticação
+  if (!isReady) {
+    return (
+        <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#7B42F6" />
+        </View>
+    ); 
+  }
+  
+  // Lógica de autenticação/cadastro
+  const handleAuth = () => {
+    setErrorMessage(null); 
     
     if (email && password && (isLogin || name)) {
         
-        if (isLogin) {
-            console.log('Tentativa de Login:', email, password);
-        } else {
-            console.log('Tentativa de Cadastro:', { name, email, password });
-        }
-        
-     
-        router.replace('/feed'); 
+      if (isLogin) {
+        console.log('Tentativa de Login:', email, password);
+      } else {
+        console.log('Tentativa de Cadastro:', { name, email, password });
+      }
       
-        setEmail('');
-        setPassword('');
-        setName('');
-        
+      // Simulação de sucesso: Navega para o feed
+      router.replace('/feed'); 
+      
+      setEmail('');
+      setPassword('');
+      setName('');
+      
     } else {
-        alert('Por favor, preencha todos os campos obrigatórios.');
+      // Exibe mensagem de erro na UI (substituindo o alert)
+      setErrorMessage('Por favor, preencha todos os campos obrigatórios.');
     }
-};
+  };
 
+  // Se 'isReady' for true e 'isAuthenticated' for false, mostra a tela de Login
   return (
     <LinearGradient
       colors={[COLORS.gradientStart, COLORS.gradientEnd]}
@@ -100,7 +152,7 @@ const GraffiteAuthScreen: React.FC = () => {
           style={styles.keyboardAvoidingView}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
-          {/* Header/Topo (Adicionando um ícone placeholder para ficar mais parecido com a imagem) */}
+          {/* Header/Topo */}
           <View style={styles.header}>
             <Text style={styles.iconPlaceholder}>📌</Text>
             <Text style={styles.title}>Grafite App</Text>
@@ -114,12 +166,12 @@ const GraffiteAuthScreen: React.FC = () => {
             <View style={styles.authSwitchContainer}>
               <AuthButton
                 label="Login"
-                onPress={() => setIsLogin(true)}
+                onPress={() => { setIsLogin(true); setErrorMessage(null); }}
                 isActive={isLogin}
               />
               <AuthButton
                 label="Cadastrar"
-                onPress={() => setIsLogin(false)}
+                onPress={() => { setIsLogin(false); setErrorMessage(null); }}
                 isActive={!isLogin}
               />
             </View>
@@ -163,6 +215,13 @@ const GraffiteAuthScreen: React.FC = () => {
                 onChangeText={setPassword}
               />
             </View>
+            
+            {/* Mensagem de Erro */}
+            {errorMessage && (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>⚠️ {errorMessage}</Text>
+              </View>
+            )}
 
             {/* Botão de Ação */}
             <TouchableOpacity
@@ -181,7 +240,9 @@ const GraffiteAuthScreen: React.FC = () => {
   );
 };
 
-// --- ESTILOS (Mesmos estilos com a correção para TextInput) ---
+export default GraffiteAuthScreen;
+
+// --- ESTILOS ---
 const styles = StyleSheet.create({
   fullScreen: { flex: 1 },
   safeArea: { flex: 1, paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0 },
@@ -215,6 +276,24 @@ const styles = StyleSheet.create({
   input: { backgroundColor: COLORS.inputBg, borderRadius: 8, paddingHorizontal: 15, paddingVertical: 12, height: 48, fontSize: 16, color: COLORS.textDark, textAlignVertical: 'center' },
   actionButton: { backgroundColor: COLORS.buttonPrimary, borderRadius: 8, paddingVertical: 15, marginTop: 20, alignItems: 'center' },
   actionButtonText: { color: COLORS.buttonText, fontSize: 18, fontWeight: 'bold' },
+  errorContainer: {
+    padding: 10,
+    backgroundColor: COLORS.errorBackground, 
+    borderRadius: 8,
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: COLORS.errorBorder,
+  },
+  errorText: {
+    color: COLORS.errorText, 
+    fontSize: 14,
+    textAlign: 'center',
+    fontWeight: '600',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+  }
 });
-
-export default GraffiteAuthScreen;

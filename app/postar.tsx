@@ -1,6 +1,4 @@
-// app/(tabs)/postar.tsx
-
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -11,12 +9,11 @@ import {
   Image,
   ScrollView,
   Alert,
-  ActivityIndicator,
 } from 'react-native';
 
 // Importa bibliotecas necessárias
 import * as ImagePicker from 'expo-image-picker';
-import * as Location from 'expo-location';
+// O import de Location foi removido, pois a funcionalidade não é mais necessária.
 
 // --- DEFINIÇÃO DE CORES ---
 const COLORS = {
@@ -34,51 +31,12 @@ const PostarScreen: React.FC = () => {
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [locationName, setLocationName] = useState('Obtendo localização...');
-  const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [isLoadingLocation, setIsLoadingLocation] = useState(false);
+  
+  // Os states de localização (locationName, coords, isLoadingLocation) foram removidos.
 
-  // --- FUNÇÃO DE OBTENÇÃO DE LOCALIZAÇÃO (RF005) ---
-  const getCurrentLocation = async () => {
-    setIsLoadingLocation(true);
-    let { status } = await Location.requestForegroundPermissionsAsync();
-    
-    if (status !== 'granted') {
-      setLocationName('Permissão de localização negada.');
-      setIsLoadingLocation(false);
-      return;
-    }
-
-    try {
-      let location = await Location.getCurrentPositionAsync({});
-      setCoords({
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
-      });
-
-      // Converte coordenadas para um endereço legível (geocoding)
-      let reverse = await Location.reverseGeocodeAsync({
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
-      });
-
-      const city = reverse[0]?.city || reverse[0]?.subregion || 'Local Desconhecido';
-      const street = reverse[0]?.street || 'Rua Desconhecida';
-      
-      setLocationName(`${street}, ${city}`);
-      
-    } catch (error) {
-      setLocationName('Erro ao obter localização.');
-      console.error('Location Error:', error);
-    } finally {
-      setIsLoadingLocation(false);
-    }
-  };
-
-  // Carrega a localização assim que a tela abre
-  useEffect(() => {
-    getCurrentLocation();
-  }, []);
+  // O useEffect para carregar a localização (getCurrentLocation) foi removido.
+  
+  // A função getCurrentLocation foi removida.
 
   // --- FUNÇÃO DE SELEÇÃO DE IMAGEM (RF005) ---
   const pickImage = async () => {
@@ -99,10 +57,11 @@ const PostarScreen: React.FC = () => {
     if (!result.canceled) {
       // RF020: Validação de imagem simulada
       const asset = result.assets[0];
-      if (asset.fileSize && asset.fileSize > 5000000) { // Exemplo: 5MB
-          Alert.alert('Imagem muito grande', 'O tamanho máximo da imagem é 5MB. Por favor, escolha outra.');
-          setImageUri(null);
-          return;
+      // Verificação de tamanho (simulando 5MB)
+      if (asset.fileSize && asset.fileSize > 5000000) { 
+        Alert.alert('Imagem muito grande', 'O tamanho máximo da imagem é 5MB. Por favor, escolha outra.');
+        setImageUri(null);
+        return;
       }
       setImageUri(asset.uri);
     }
@@ -110,15 +69,16 @@ const PostarScreen: React.FC = () => {
 
   // --- FUNÇÃO DE POSTAGEM (RF005) ---
   const handlePost = () => {
-    if (!imageUri || !title || !description || !coords) {
-      Alert.alert('Preenchimento obrigatório', 'Por favor, selecione uma imagem, preencha o título, a descrição e aguarde a localização ser obtida.');
+    // A validação de 'coords' foi removida.
+    if (!imageUri || !title || !description) {
+      Alert.alert('Preenchimento obrigatório', 'Por favor, selecione uma imagem, preencha o título e a descrição.');
       return;
     }
 
     // 💡 NO FUTURO: Aqui você faria a chamada à API (Java Spring Boot) com o JWT (RF003)
-    // Usaria o 'title', 'description', 'imageUri' e 'coords' para enviar o JSON/FormData.
+    // Usaria o 'title', 'description' e 'imageUri' para enviar o JSON/FormData.
     
-    console.log('Dados prontos para envio:', { title, description, coords, imageUri });
+    console.log('Dados prontos para envio:', { title, description, imageUri });
     
     Alert.alert('Postagem enviada!', `Seu grafite "${title}" foi enviado para o servidor.`);
     
@@ -126,7 +86,6 @@ const PostarScreen: React.FC = () => {
     setImageUri(null);
     setTitle('');
     setDescription('');
-    getCurrentLocation(); // Atualiza a localização novamente
   };
 
 
@@ -150,21 +109,11 @@ const PostarScreen: React.FC = () => {
           )}
         </TouchableOpacity>
 
-        {/* --- CAMPO LOCALIZAÇÃO (RF005) --- */}
-        <View style={styles.inputGroup}>
+        {/* --- CAMPO LOCALIZAÇÃO REMOVIDO AQUI --- */}
+        {/* <View style={styles.inputGroup}>
           <Text style={styles.inputLabel}>Localização</Text>
-          <View style={styles.locationContainer}>
-             {isLoadingLocation ? (
-                 <ActivityIndicator size="small" color={COLORS.primary} />
-             ) : (
-                <Text style={styles.locationText}>{locationName}</Text>
-             )}
-             {/* Botão de Atualizar Localização */}
-             <TouchableOpacity onPress={getCurrentLocation} style={styles.refreshButton}>
-                <Text style={styles.refreshIcon}>🔄</Text>
-             </TouchableOpacity>
-          </View>
-        </View>
+          ...
+        </View> */}
 
         {/* --- CAMPO TÍTULO (RF005) --- */}
         <View style={styles.inputGroup}>
@@ -277,31 +226,6 @@ const styles = StyleSheet.create({
     minHeight: 100,
     textAlignVertical: 'top',
   },
-  // --- Localização ---
-  locationContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: COLORS.cardBg,
-    borderRadius: 8,
-    paddingHorizontal: 15,
-    paddingVertical: 12,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    height: 48,
-  },
-  locationText: {
-    fontSize: 15,
-    color: COLORS.textDark,
-    flex: 1,
-  },
-  refreshButton: {
-      padding: 5,
-  },
-  refreshIcon: {
-      fontSize: 18,
-      color: COLORS.primary,
-  },
   // --- Botão de Postar ---
   postButton: {
     backgroundColor: COLORS.primary,
@@ -315,6 +239,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
   },
+  // Estilos de localização removidos (locationContainer, locationText, refreshButton, refreshIcon)
 });
 
 export default PostarScreen;
