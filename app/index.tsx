@@ -10,14 +10,14 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Image, // <-- Importado o componente Image
 } from 'react-native';
-// Note: 'expo-linear-gradient' é um pacote externo e pode não estar disponível 
-// em ambientes simulados, mas mantido conforme o original.
-// Se necessário, substitua por View com cor sólida.
 import { LinearGradient } from 'expo-linear-gradient';
-
 import { useRouter } from 'expo-router'; 
 
+
+// Define a URL para o ícone de grafite
+const GRAFFITI_ICON_URL = 'http://googleusercontent.com/image_generation_content/0';
 
 const COLORS = {
   gradientStart: '#7B42F6', 
@@ -33,6 +33,8 @@ const COLORS = {
   errorBackground: '#FFEBEE',
   errorBorder: '#D32F2F',
   errorText: '#D32F2F',
+  successBackground: '#E8F5E9', 
+  successText: '#388E3C',       
 };
 
 
@@ -72,19 +74,14 @@ function useAuthStatus() {
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    // Simula a verificação de um token local.
-    // Em uma aplicação real, aqui você faria a chamada assíncrona para checar o token/sessão.
     const checkAuth = async () => {
       await new Promise(resolve => setTimeout(resolve, 50)); 
-      // Por padrão, definimos como false para que a tela de login apareça primeiro.
       setIsAuthenticated(false); 
       setIsReady(true);
     };
     checkAuth();
   }, []);
 
-  // Nota: Retornamos setIsAuthenticated, embora não seja usado diretamente no Index,
-  // mantemos a estrutura de um hook de autenticação real.
   return { isAuthenticated, isReady, setIsAuthenticated };
 }
 
@@ -95,16 +92,18 @@ const GraffiteAuthScreen: React.FC = () => {
   const { isAuthenticated, isReady } = useAuthStatus();
   
   const [isLogin, setIsLogin] = useState(true);
-  const [name, setName] = useState('');
+  const [name, setName] = useState(''); // Estado para o nome do usuário
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  // NOVO ESTADO: Confirmação de senha
+  const [confirmPassword, setConfirmPassword] = useState(''); 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null); 
 
-  // Se o estado de autenticação for true, redireciona imediatamente (sem mostrar a tela de login)
+  // Se o estado de autenticação for true, redireciona imediatamente
   if (isReady && isAuthenticated) {
-    // router.replace() é crucial aqui para remover a tela de login da pilha.
     router.replace('/feed');
-    return null; // Não renderiza nada enquanto redireciona
+    return null; 
   }
 
   // Mostra o loading enquanto verifica a autenticação
@@ -119,29 +118,52 @@ const GraffiteAuthScreen: React.FC = () => {
   // Lógica de autenticação/cadastro
   const handleAuth = () => {
     setErrorMessage(null); 
+    setSuccessMessage(null);
     
-    if (email && password && (isLogin || name)) {
-        
-      if (isLogin) {
-        console.log('Tentativa de Login:', email, password);
-      } else {
-        console.log('Tentativa de Cadastro:', { name, email, password });
-      }
-      
-      // Simulação de sucesso: Navega para o feed
+    // 1. Validação básica (campos preenchidos)
+    // No modo cadastro, exige nome, email, senha E a confirmação de senha
+    if (!email || !password || (!isLogin && (!name || !confirmPassword))) { // Verifica se o campo 'name' foi preenchido no modo cadastro
+      setErrorMessage('Por favor, preencha todos os campos obrigatórios.');
+      return;
+    }
+
+    // 2. Validação de Confirmação de Senha (apenas no modo Cadastro)
+    if (!isLogin && password !== confirmPassword) {
+      setErrorMessage('A senha e a confirmação de senha não são idênticas.');
+      return;
+    }
+    
+    // Simulação de sucesso da requisição (Em um app real, faria a chamada API aqui)
+    if (isLogin) {
+      // --- CÓDIGO PARA LOGIN BEM-SUCEDIDO ---
+      console.log('Login bem-sucedido:', email);
       router.replace('/feed'); 
       
-      setEmail('');
-      setPassword('');
-      setName('');
-      
     } else {
-      // Exibe mensagem de erro na UI (substituindo o alert)
-      setErrorMessage('Por favor, preencha todos os campos obrigatórios.');
+      // --- CÓDIGO PARA CADASTRO BEM-SUCEDIDO ---
+      console.log('Cadastro bem-sucedido:', { name, email, password });
+      
+      // Alterna para o modo Login
+      setIsLogin(true); 
+      // Avisa o usuário que o cadastro foi um sucesso
+      setSuccessMessage('Cadastro realizado com sucesso! Faça login para continuar.');
+      // Limpa campos
+      setPassword(''); 
+      setConfirmPassword(''); // Limpa a confirmação
+      setName('');
     }
   };
 
-  // Se 'isReady' for true e 'isAuthenticated' for false, mostra a tela de Login
+  // Funções para limpar mensagens ao alternar modo
+  const handleSwitchMode = (isLoginMode: boolean) => {
+    setIsLogin(isLoginMode);
+    setErrorMessage(null); 
+    setSuccessMessage(null);
+    setConfirmPassword(''); // Limpa a confirmação ao trocar
+  };
+
+
+  // Se 'isReady' for true e 'isAuthenticated' for false, mostra a tela de Login/Cadastro
   return (
     <LinearGradient
       colors={[COLORS.gradientStart, COLORS.gradientEnd]}
@@ -154,7 +176,11 @@ const GraffiteAuthScreen: React.FC = () => {
         >
           {/* Header/Topo */}
           <View style={styles.header}>
-            <Text style={styles.iconPlaceholder}>📌</Text>
+            {/* ÍCONE SUBSTITUÍDO PELA IMAGEM DE GRAFITE */}
+            <Image 
+              source={{ uri: GRAFFITI_ICON_URL }} 
+              style={styles.iconImage} // Novo estilo
+            />
             <Text style={styles.title}>Grafite App</Text>
             <Text style={styles.subtitle}>Compartilhe sua arte urbana</Text>
           </View>
@@ -166,23 +192,36 @@ const GraffiteAuthScreen: React.FC = () => {
             <View style={styles.authSwitchContainer}>
               <AuthButton
                 label="Login"
-                onPress={() => { setIsLogin(true); setErrorMessage(null); }}
+                onPress={() => handleSwitchMode(true)}
                 isActive={isLogin}
               />
               <AuthButton
                 label="Cadastrar"
-                onPress={() => { setIsLogin(false); setErrorMessage(null); }}
+                onPress={() => handleSwitchMode(false)}
                 isActive={!isLogin}
               />
             </View>
 
-            {/* Campos de Input */}
-            {!isLogin && (
+            {/* Mensagem de Erro/Sucesso */}
+            {errorMessage && (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>⚠️ {errorMessage}</Text>
+              </View>
+            )}
+            
+            {successMessage && (
+                <View style={styles.successContainer}>
+                    <Text style={styles.successText}>🎉 {successMessage}</Text>
+                </View>
+            )}
+
+            {/* Campos de Input (Nome, Email, Senha, Confirmação) */}
+            {!isLogin && ( // Campo Nome aparece apenas no modo Cadastro
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Nome</Text>
                 <TextInput
                   style={styles.input}
-                  placeholder="Seu nome completo"
+                  placeholder="Seu nome completo ou nome de usuário"
                   placeholderTextColor="#AAAAAA"
                   autoCapitalize="words"
                   value={name}
@@ -216,13 +255,21 @@ const GraffiteAuthScreen: React.FC = () => {
               />
             </View>
             
-            {/* Mensagem de Erro */}
-            {errorMessage && (
-              <View style={styles.errorContainer}>
-                <Text style={styles.errorText}>⚠️ {errorMessage}</Text>
+            {/* NOVO CAMPO: Confirmação de Senha (Apenas no modo Cadastro) */}
+            {!isLogin && (
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Confirme a Senha</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="••••••••"
+                  placeholderTextColor="#AAAAAA"
+                  secureTextEntry={true}
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                />
               </View>
             )}
-
+            
             {/* Botão de Ação */}
             <TouchableOpacity
               style={styles.actionButton}
@@ -248,7 +295,15 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0 },
   keyboardAvoidingView: { flex: 1, justifyContent: 'flex-end' },
   header: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 50 },
-  iconPlaceholder: { fontSize: 40, marginBottom: 15, color: COLORS.text, backgroundColor: 'white', borderRadius: 50, padding: 10, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 5 },
+  // NOVO ESTILO PARA A IMAGEM
+  iconImage: {
+    width: 100, 
+    height: 100, 
+    marginBottom: 15, 
+    borderRadius: 15, 
+    resizeMode: 'contain',
+    backgroundColor: 'transparent',
+  },
   title: { fontSize: 30, fontWeight: 'bold', color: COLORS.text, marginBottom: 5 },
   subtitle: { fontSize: 16, color: COLORS.text, opacity: 0.8, marginBottom: 30 },
   card: {
@@ -286,6 +341,20 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: COLORS.errorText, 
+    fontSize: 14,
+    textAlign: 'center',
+    fontWeight: '600',
+  },
+  successContainer: { 
+    padding: 10,
+    backgroundColor: COLORS.successBackground, 
+    borderRadius: 8,
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: COLORS.successText,
+  },
+  successText: {
+    color: COLORS.successText, 
     fontSize: 14,
     textAlign: 'center',
     fontWeight: '600',
